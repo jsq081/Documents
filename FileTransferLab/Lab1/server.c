@@ -47,11 +47,11 @@ int main(int argc, char** argv){
 
 
     //recieve msg
-    char buf[100];    //= {0};
+    char buf[100];  
     struct sockaddr_in client_addr; 
     socklen_t client_len = sizeof(client_addr); // length of client info
     // recvfrom the client and store info in cli_addr so as to send back later
-    printf("hahaha\n");
+    //printf("hahaha\n");
 
     if (recvfrom(socketfd, (char*) buf, sizeof(buf), 0, (struct sockaddr *) &client_addr, &client_len) == -1) {
         printf("Error: Unseccessful recieve\n");
