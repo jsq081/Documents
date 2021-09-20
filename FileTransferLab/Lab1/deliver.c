@@ -39,7 +39,7 @@ int main(int argc, char** argv){
 
     scanf("%s %s", input, filename);
 
-    printf("1111\n");
+    //printf("1111\n");
 
     if(strcmp(input, "ftp") != 0){
         printf("Error: Need to type ftp.\n");
