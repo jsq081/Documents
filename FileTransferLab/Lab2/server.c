@@ -9,7 +9,9 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <time.h>
-
+#include "packet.h"
+#include "packet.c"
+#include <stdbool.h>
 
 int main(int argc, char** argv){
 
@@ -38,6 +40,8 @@ int main(int argc, char** argv){
 
 
     socklen_t serv_addr_len = sizeof(serv_addr);
+
+
     // bind socket to address
     if (bind( socketfd, (const struct sockaddr * ) &serv_addr, serv_addr_len) == -1) {
         printf("Error: bind error\n");
@@ -47,12 +51,13 @@ int main(int argc, char** argv){
     printf("Server reciving on port %d\n", port);
 
 
+
+
     //recieve msg
-    char buf[100];    
+    char buf[BUF_SIZE];    
     struct sockaddr_in client_addr; 
     socklen_t client_len = sizeof(client_addr); // length of client info
     // recvfrom the client and store info in cli_addr so as to send back later
-    //printf("hahaha\n");
 
     if (recvfrom(socketfd, (char*) buf, sizeof(buf), 0, (struct sockaddr *) &client_addr, &client_len) == -1) {
         printf("Error: Unseccessful recieve\n");
@@ -62,7 +67,7 @@ int main(int argc, char** argv){
 
     printf("Finished recieve, start reply\n");
 
-
+    //send back msg to client
     if (strcmp(buf, "ftp") == 0) {
         if (sendto(socketfd, "yes", sizeof("yes"), 0, (struct sockaddr *) &client_addr,client_len) == -1) {
             printf("Error: Unseccessful sendto\n");
@@ -74,8 +79,62 @@ int main(int argc, char** argv){
             exit(EXIT_FAILURE);
         }
     }
-   
-    printf("Finished reply\n");
+
+   Packet packet;
+   packet.filename=(char*)malloc(BUF_SIZE);
+   char filename[BUF_SIZE]={0};
+
+   FILE *fptr = NULL;
+   bool *fragRecv = NULL;
+
+   while (1)
+   {
+      if (recvfrom(socketfd, (char*) buf, sizeof(buf), 0, (struct sockaddr *) &client_addr, &client_len) == -1) {
+        printf("Error: Unseccessful recieve\n");
+        exit(EXIT_FAILURE);
+      }
+
+      stringToPacket(buf, &packet);
+
+      if(fptr==NULL){
+          strcpy(filename,packet.filename);
+          fptr=fopen(filename, "w"); //Creates an empty file for writing.
+          fragRecv = (bool *)malloc(packet.total_frag * sizeof(fragRecv));
+
+          for(int i=0;i<packet.total_frag;i++){
+              fragRecv[i]=false;
+          }
+      }
+
+      if(fragRecv[packet.frag_no]==false){
+          if(fwrite(packet.filedata,sizeof(char),packet.size,fptr)!=packet.size){
+              printf("cannot copy data into new file\n");
+              exit(EXIT_FAILURE);
+          }else{
+              fragRecv[packet.frag_no]=true;
+          }
+      }
+
+      //Acknowlegement set up
+      strcpy(packet.filedata,"ACK");
+
+      packetToString(buf,&packet);
+
+      if (sendto(socketfd, buf, sizeof(buf), 0, (struct sockaddr *) &client_addr,client_len) == -1) {
+            printf("Need ACK\n");
+            exit(EXIT_FAILURE);
+      }
+
+      //loop to last frag, break loop
+      if (packet.frag_no==packet.total_frag){
+
+          printf("finish file transfer\n");
+          break;
+      }
+
+
+   }
+    //printf("Finished reply\n");
     close(socketfd);
 
     return 0;
